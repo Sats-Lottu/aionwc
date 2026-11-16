@@ -1,0 +1,71 @@
+Development
+===========
+
+Tests and coverage
+------------------
+
+Install the project with the optional NIP-04 fallback to exercise both
+AES backends when OpenSSL is available. The default test run selects the
+tests that run without Docker.
+
+.. code-block:: console
+
+   poetry install --extras nip04-fallback
+   poetry run pytest --cov=aionwc --cov-report=term-missing
+
+Integration with LNbits
+-----------------------
+
+Start Docker, then install the integration dependencies and run the
+integration marker.
+
+.. code-block:: console
+
+   poetry install --with integration --extras nip04-fallback
+   poetry run pytest -m integration
+
+Testcontainers starts LNbits and a Nostr relay with fresh wallets. The
+test creates and pays an invoice with LNbits' ``FakeWallet``, then
+checks settlement, transaction history, and balances. Initial setup
+requires network access to fetch the container images and the LNbits NWC
+Provider extension. The funding source uses simulated funds.
+
+To measure both suites in a single report, clear the default marker
+selection.
+
+.. code-block:: console
+
+   poetry run pytest -o "addopts=" --cov=aionwc --cov-report=term-missing
+
+Build the documentation
+-----------------------
+
+The documentation dependencies are in Poetry's optional ``docs`` group.
+Sphinx imports the installed package to generate the API reference.
+
+.. code-block:: console
+
+   poetry install --with docs
+   poetry run sphinx-build -M html docs docs/_build -W --keep-going
+
+Open ``docs/_build/html/index.html`` for a local preview. To use the
+site search, serve the generated files over HTTP.
+
+.. code-block:: console
+
+   poetry run python -m http.server --bind 127.0.0.1 --directory docs/_build/html 8000
+
+Visit `http://127.0.0.1:8000 <http://127.0.0.1:8000>`_ while the server runs.
+
+Read the Docs Community
+-----------------------
+
+The repository's ``.readthedocs.yaml`` installs the package and the
+locked documentation dependencies with Poetry, then builds the Sphinx
+site with warnings treated as errors.
+
+Once these files are on GitHub, an administrator can
+`import Sats-Lottu/aionwc into Read the Docs Community
+<https://docs.readthedocs.com/platform/stable/intro/add-project.html>`_.
+Review the first build and add the confirmed public documentation URL
+as the ``Documentation`` entry in ``[project.urls]``.
