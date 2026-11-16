@@ -21,15 +21,13 @@ execution time. On Windows, the client looks for `secp256k1.dll` or
 bundled with CPython.
 
 To install a local build, run `poetry build` followed by
-`pip install dist/aionwc-0.1.0-py3-none-any.whl`. To include the fallback,
-use `pip install "dist/aionwc-0.1.0-py3-none-any.whl[nip04-fallback]"`.
+`pip install dist/aionwc-0.1.1-py3-none-any.whl`. To include the fallback,
+use `pip install "dist/aionwc-0.1.1-py3-none-any.whl[nip04-fallback]"`.
 
 ## Documentation
 
-The [documentation source](https://github.com/Sats-Lottu/aionwc/tree/main/docs) includes a quickstart, wallet
-operations, encryption compatibility, and a generated API reference.
-The [development guide](https://github.com/Sats-Lottu/aionwc/blob/main/docs/development.rst) covers publishing it on
-Read the Docs Community.
+The [documentation](https://aionwc.readthedocs.io/) includes a quickstart,
+wallet operations, encryption compatibility, and a generated API reference.
 
 ```console
 poetry install --with docs

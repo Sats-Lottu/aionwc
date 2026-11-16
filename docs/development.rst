@@ -64,8 +64,5 @@ The repository's ``.readthedocs.yaml`` installs the package and the
 locked documentation dependencies with Poetry, then builds the Sphinx
 site with warnings treated as errors.
 
-Once these files are on GitHub, an administrator can
-`import Sats-Lottu/aionwc into Read the Docs Community
-<https://docs.readthedocs.com/platform/stable/intro/add-project.html>`_.
-Review the first build and add the confirmed public documentation URL
-as the ``Documentation`` entry in ``[project.urls]``.
+The ``Documentation`` entry in ``[project.urls]`` points to the
+`public documentation site <https://aionwc.readthedocs.io/>`_.
