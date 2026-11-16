@@ -1,0 +1,59 @@
+[project]
+name = "aionwc"
+version = "0.1.0"
+description = "Async Python client for Lightning wallets using Nostr Wallet Connect"
+authors = [{ name = "Sats-Lottu" }]
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+keywords = ["nostr", "nwc", "lightning", "bitcoin", "asyncio"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: AsyncIO",
+    "Programming Language :: Python :: 3",
+    "Typing :: Typed",
+]
+dependencies = [
+    "websockets>=15,<17",
+]
+
+[project.optional-dependencies]
+nip04-fallback = ["pyaes>=1.6.1,<2"]
+
+[project.urls]
+Repository = "https://github.com/Sats-Lottu/aionwc"
+Issues = "https://github.com/Sats-Lottu/aionwc/issues"
+
+[tool.poetry]
+packages = [{ include = "aionwc", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4"
+pytest-asyncio = "^1.0"
+twine = "^6.2"
+pytest-cov = "^7.1.0"
+
+[tool.poetry.group.docs]
+optional = true
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^8.2.3"
+furo = "^2025.12.19"
+
+[tool.poetry.group.integration]
+optional = true
+
+[tool.poetry.group.integration.dependencies]
+testcontainers = "^4.14"
+httpx = "^0.28"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = ["integration: exercises LNbits and a Nostr relay in Docker"]
+addopts = "-m 'not integration'"
+
+[build-system]
+requires = ["poetry-core>=2.0,<3.0"]
+build-backend = "poetry.core.masonry.api"
