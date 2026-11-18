@@ -269,7 +269,7 @@ Open `docs/_build/html/index.html` to preview the site. To install a locally
 built package, use the generated wheel from `dist/`.
 
 ```console
-python -m pip install dist/aionwc-0.1.1-py3-none-any.whl
+python -m pip install dist/aionwc-0.2.0-py3-none-any.whl
 ```
 
 Release validation and PyPI Trusted Publishing are documented in the release
