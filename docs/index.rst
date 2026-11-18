@@ -19,6 +19,9 @@ create and pay invoices, and look up transactions.
 :doc:`wallet`
    Create and track invoices, submit payments, and handle uncertain outcomes.
 
+:doc:`payments`
+   Pay for HTTP resources or charge for FastAPI endpoints using Lightning.
+
 :doc:`encryption`
    Choose NIP-44 or NIP-04 and see which cryptographic backends the client can use.
 
@@ -34,6 +37,7 @@ create and pay invoices, and look up transactions.
 
    quickstart
    wallet
+   payments
    encryption
    api
    development
