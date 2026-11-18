@@ -4,14 +4,14 @@ Development
 Tests and coverage
 ------------------
 
-Install the project with the optional NIP-04 fallback to exercise both
-AES backends when OpenSSL is available. The default test run selects the
-tests that run without Docker.
+Install the project with the FastAPI and optional NIP-04 fallback extras to
+exercise HTTP payments and both AES backends when OpenSSL is available.
+The default test run selects the tests that run without Docker.
 
 .. code-block:: console
 
-   poetry install --extras nip04-fallback
-   poetry run pytest --cov=aionwc --cov-report=term-missing
+   poetry install --extras "nip04-fallback fastapi"
+   poetry run pytest --cov=aionwc --cov-report=term-missing --cov-fail-under=100
 
 Integration with LNbits
 -----------------------
@@ -21,12 +21,13 @@ integration marker.
 
 .. code-block:: console
 
-   poetry install --with integration --extras nip04-fallback
+   poetry install --with integration --extras "nip04-fallback fastapi"
    poetry run pytest -m integration
 
-Testcontainers starts LNbits and a Nostr relay with fresh wallets. The
-test creates and pays an invoice with LNbits' ``FakeWallet``, then
-checks settlement, transaction history, and balances. Initial setup
+Testcontainers starts LNbits and a Nostr relay with fresh wallets for each
+test. The suite checks the NWC invoice lifecycle and FastAPI payment flows
+for L402, MPP, and x402, including preimages, settlement, balances, request
+binding, and replay behavior. Initial setup
 requires network access to fetch the container images and the LNbits NWC
 Provider extension. The funding source uses simulated funds.
 
@@ -35,7 +36,11 @@ selection.
 
 .. code-block:: console
 
-   poetry run pytest -o "addopts=" --cov=aionwc --cov-report=term-missing
+   poetry run pytest -o addopts= --cov=aionwc --cov-report=term-missing --cov-fail-under=100
+
+GitHub Actions runs the integration suite on pull requests, manual workflow
+runs, and releases. Publishing requires both the build with 100% line
+coverage and the Docker integration job to pass.
 
 Build the documentation
 -----------------------

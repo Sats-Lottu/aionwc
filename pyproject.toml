@@ -1,6 +1,6 @@
 [project]
 name = "aionwc"
-version = "0.1.1"
+version = "0.2.0"
 description = "Async Python client for Lightning wallets using Nostr Wallet Connect"
 authors = [{ name = "Sats-Lottu" }]
 readme = "README.md"
@@ -20,6 +20,8 @@ dependencies = [
 
 [project.optional-dependencies]
 nip04-fallback = ["pyaes>=1.6.1,<2"]
+payments = ["httpx>=0.28,<1"]
+fastapi = ["httpx>=0.28,<1", "fastapi>=0.115,<1"]
 
 [project.urls]
 Documentation = "https://aionwc.readthedocs.io/"

@@ -1,4 +1,4 @@
-"""Nostr key agreement and BIP340 signatures, based on nwc-agent."""
+"""secp256k1 key agreement and Nostr/BOLT11 signatures, based on nwc-agent."""
 
 from hashlib import sha256
 from secrets import token_bytes
@@ -154,3 +154,42 @@ def schnorr_verify(pubkey: bytes, message: bytes, signature: bytes) -> bool:
         _point_mul(inverse_challenge, point),
     )
     return expected is not None and expected[0] == x and expected[1] % 2 == 0
+
+
+def ecdsa_payee(message: bytes, signature: bytes, pubkey: bytes | None = None) -> bytes:
+    """Verify or recover a compressed BOLT11 ECDSA signing key from public data."""
+    if len(message) != 32 or len(signature) != 65 or signature[64] > 3:
+        raise ValueError("Invalid recoverable ECDSA signature")
+    r = int.from_bytes(signature[:32], "big")
+    s = int.from_bytes(signature[32:64], "big")
+    if not 0 < r < ORDER or not 0 < s < ORDER:
+        raise ValueError("ECDSA signature is outside the scalar range")
+    message_scalar = int.from_bytes(message, "big")
+    if pubkey is not None:
+        if len(pubkey) != 33 or pubkey[0] not in (2, 3) or s > ORDER // 2:
+            raise ValueError("Invalid BOLT11 signing key or noncanonical ECDSA signature")
+        x, y = _lift_x(pubkey[1:])
+        if (y & 1) != (pubkey[0] & 1):
+            y = FIELD - y
+        inverse = pow(s, -1, ORDER)
+        verified = _point_add(
+            _point_mul(message_scalar * inverse % ORDER, GENERATOR),
+            _point_mul(r * inverse % ORDER, (x, y)),
+        )
+        if verified is None or verified[0] % ORDER != r:
+            raise ValueError("Invalid BOLT11 ECDSA signature")
+        return pubkey
+    x = r + (signature[64] >> 1) * ORDER
+    if x >= FIELD:
+        raise ValueError("ECDSA recovery point is outside the curve field")
+    x, y = _lift_x(x.to_bytes(32, "big"))
+    if (y & 1) != (signature[64] & 1):
+        y = FIELD - y
+    inverse = pow(r, -1, ORDER)
+    recovered = _point_add(
+        _point_mul(s * inverse % ORDER, (x, y)),
+        _point_mul(-message_scalar * inverse % ORDER, GENERATOR),
+    )
+    if recovered is None:
+        raise ValueError("Cannot recover the BOLT11 signing key")
+    return bytes([2 | (recovered[1] & 1)]) + recovered[0].to_bytes(32, "big")

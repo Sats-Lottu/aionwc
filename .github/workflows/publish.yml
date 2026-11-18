@@ -44,8 +44,8 @@ jobs:
       - name: Validate project and run tests
         run: |
           poetry check --lock --strict
-          poetry install --only main,dev --extras nip04-fallback
-          poetry run pytest
+          poetry install --only main,dev --extras "nip04-fallback fastapi"
+          poetry run pytest --cov=aionwc --cov-report=term-missing --cov-fail-under=100
 
       - name: Build and check distributions
         run: |
@@ -61,9 +61,32 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
+  integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: python -m pip install 'poetry==2.4.1'
+
+      - name: Install integration dependencies
+        run: poetry install --only main,dev,integration --extras "nip04-fallback fastapi"
+
+      - name: Test LNbits and HTTP payments in Docker
+        run: poetry run pytest -m integration -q --tb=short
+
   publish:
     if: github.event_name == 'release' && github.event.action == 'published' && github.repository == 'Sats-Lottu/aionwc' && github.ref_type == 'tag'
-    needs: build
+    needs: [build, integration]
     runs-on: ubuntu-24.04
     environment:
       name: pypi
