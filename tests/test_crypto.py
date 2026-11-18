@@ -101,3 +101,121 @@ def test_nip44_extended_length_reference_vector():
         "b7b4edb36ba92e267d322d56d9aebc22e7fa96ff52e3c12adc07f07a43cbc616"
     )
     assert nip44_decrypt(key, payload) == plaintext
+
+
+@pytest.mark.parametrize("payload", ["no-iv", "?iv=AA==", "AA==?iv=" + b64encode(bytes(16)).decode()])
+def test_nip04_rejects_missing_iv_and_invalid_lengths(payload):
+    with pytest.raises(ValueError, match="NIP-04"):
+        _encryption.nip04_decrypt(bytes(32), payload)
+
+
+def test_encryption_rejects_invalid_key_nonce_and_plaintext():
+    with pytest.raises(ValueError, match="AES key"):
+        _encryption._aes_cbc(bytes(31), bytes(16), b"", encrypt=True)
+    with pytest.raises(ValueError, match="plaintext length"):
+        nip44_encrypt(bytes(32), "")
+    with pytest.raises(ValueError, match="nonce"):
+        nip44_encrypt(bytes(32), "message", nonce=bytes(31))
+    for raw in (bytes(98), b"\x03" + bytes(98)):
+        with pytest.raises(ValueError, match="v2 payload"):
+            nip44_decrypt(bytes(32), b64encode(raw).decode())
+
+
+@pytest.mark.parametrize("padded,error", [
+    (bytes(34), "extended length"),
+    (b"\x00\x01" + b"a" * 33, "padding"),
+])
+def test_nip44_rejects_authenticated_invalid_padding(padded, error):
+    # Recompute the MAC so malformed padding reaches validation after authentication.
+    import hmac
+
+    key, nonce = bytes(32), bytes(32)
+    cipher_key, cipher_nonce, mac_key = _encryption._message_keys(key, nonce)
+    ciphertext = _encryption._chacha20_xor(cipher_key, cipher_nonce, padded)
+    mac = hmac.digest(mac_key, nonce + ciphertext, "sha256")
+    payload = b64encode(b"\x02" + nonce + ciphertext + mac).decode()
+    with pytest.raises(ValueError, match=error):
+        nip44_decrypt(key, payload)
+
+
+def test_curve_rejects_out_of_range_points_scalars_and_signatures(curve_backend):
+    from aionwc._secp256k1 import FIELD, GENERATOR, ORDER, ecdsa_payee
+
+    assert _secp256k1._point_add(GENERATOR, None) == GENERATOR
+    assert _secp256k1._point_add(GENERATOR, (GENERATOR[0], FIELD - GENERATOR[1])) is None
+    for invalid in (bytes(31), FIELD.to_bytes(32, "big")):
+        with pytest.raises(ValueError, match="Public key"):
+            _secp256k1._lift_x(invalid)
+    with pytest.raises(ValueError, match="32 bytes"):
+        shared_secret(1, bytes(31))
+    with pytest.raises(ValueError, match="Auxiliary"):
+        schnorr_sign(1, b"message", aux=bytes(31))
+    for signature in (FIELD.to_bytes(32, "big") + bytes(32), bytes(32) + ORDER.to_bytes(32, "big")):
+        assert not schnorr_verify(public_key(1), b"message", signature)
+    for message, signature in ((bytes(31), bytes(65)), (bytes(32), bytes(64)), (bytes(32), bytes(64) + b"\x04")):
+        with pytest.raises(ValueError, match="recoverable"):
+            ecdsa_payee(message, signature)
+    with pytest.raises(ValueError, match="scalar range"):
+        ecdsa_payee(bytes(32), bytes(65))
+    signature = (FIELD - ORDER).to_bytes(32, "big") + (1).to_bytes(32, "big") + b"\x02"
+    with pytest.raises(ValueError, match="outside the curve field"):
+        ecdsa_payee(bytes(32), signature)
+    # R=G and s=z=1 recover the point at infinity, which is not a signing key.
+    signature = GENERATOR[0].to_bytes(32, "big") + (1).to_bytes(32, "big") + b"\x00"
+    with pytest.raises(ValueError, match="Cannot recover"):
+        ecdsa_payee((1).to_bytes(32, "big"), signature)
+    with pytest.raises(ValueError, match="Invalid BOLT11 ECDSA signature"):
+        ecdsa_payee(bytes(32), signature, b"\x02" + public_key(2))
+    with pytest.raises(ValueError, match="Invalid BOLT11 ECDSA signature"):
+        ecdsa_payee(bytes(32), signature, b"\x03" + public_key(1))
+
+
+def test_private_coordinates_reject_point_at_infinity(monkeypatch):
+    from unittest.mock import Mock
+
+    monkeypatch.setattr(_secp256k1, "_OPENSSL", Mock(multiply=Mock(return_value=None)))
+    with pytest.raises(ValueError, match="Invalid curve point"):
+        _secp256k1._private_coordinates(1)
+
+
+def test_native_backend_dispatch(monkeypatch):
+    from unittest.mock import Mock
+
+    backend = Mock()
+    monkeypatch.setattr(_secp256k1, "_LIBSECP256K1", backend)
+    key, message, signature, aux = b"p" * 32, b"message", b"s" * 64, bytes(32)
+    assert public_key(1) is backend.public_key.return_value
+    backend.public_key.assert_called_once_with((1).to_bytes(32, "big"))
+    assert shared_secret(1, key) is backend.shared_secret.return_value
+    backend.shared_secret.assert_called_once_with((1).to_bytes(32, "big"), key)
+    assert schnorr_sign(1, message, aux=aux) is backend.sign.return_value
+    backend.sign.assert_called_once_with((1).to_bytes(32, "big"), message, aux)
+    assert schnorr_verify(key, message, signature) is backend.verify.return_value
+    backend.verify.assert_called_once_with(key, message, signature)
+
+
+@pytest.mark.parametrize("name,blocked", [("_encryption", "_libcrypto"), ("_secp256k1", "_native_secp256k1")])
+def test_modules_work_without_optional_ctypes(monkeypatch, name, blocked):
+    import builtins
+    import importlib.util
+    from pathlib import Path
+
+    source = Path(_encryption.__file__).with_name(name + ".py")
+    probe_name = "aionwc." + name + "_without_ctypes"
+    spec = importlib.util.spec_from_file_location(probe_name, source)
+    probe = importlib.util.module_from_spec(spec)
+    real_import = builtins.__import__
+
+    def without_native(import_name, globals=None, *args, **kwargs):
+        if import_name == blocked and globals and globals.get("__name__") == probe_name:
+            raise ImportError("ctypes unavailable on this Python build")
+        return real_import(import_name, globals, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", without_native)
+    spec.loader.exec_module(probe)
+    if name == "_encryption":
+        assert probe._OPENSSL_AES is None
+        assert probe.nip44_decrypt(bytes(32), probe.nip44_encrypt(bytes(32), "test")) == "test"
+    else:
+        assert probe._LIBSECP256K1 is probe._OPENSSL is None
+        assert probe.public_key(3) == public_key(3)
