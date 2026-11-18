@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import time
+from pathlib import Path
 from secrets import randbelow
 from urllib.parse import urlencode
 from uuid import uuid4
@@ -14,7 +15,8 @@ pytestmark = pytest.mark.integration
 LNBITS_IMAGE = "lnbits/lnbits:v1.7.1"
 RELAY_IMAGE = "scsibug/nostr-rs-relay:0.9.0"
 NWC_PROVIDER_VERSION = "1.2.1"
-NWC_MANIFEST = "https://raw.githubusercontent.com/lnbits/nwcprovider/v1.2.1/manifest.json"
+NWC_MANIFEST = "http://127.0.0.1:5000/static/nwcprovider-test-manifest.json"
+NWC_MANIFEST_FILE = Path(__file__).parent / "data" / "nwcprovider-manifest.json"
 PERMISSIONS = ("info", "balance", "invoice", "lookup", "history", "pay")
 METHODS = (
     "get_info",
@@ -32,7 +34,7 @@ def install_nwc_provider(api):
         (item for item in releases if item["version"].lstrip("v") == NWC_PROVIDER_VERSION),
         None,
     )
-    assert release is not None, f"LNbits registry lacks nwcprovider {NWC_PROVIDER_VERSION}"
+    assert release is not None, f"Fixture manifest lacks nwcprovider {NWC_PROVIDER_VERSION}"
     api.post(
         "/api/v1/extension",
         json={
@@ -98,6 +100,11 @@ def lnbits_backend():
         lnbits = (
             DockerContainer(LNBITS_IMAGE)
             .with_network(network)
+            .with_volume_mapping(
+                str(NWC_MANIFEST_FILE.resolve()),
+                "/app/lnbits/static/nwcprovider-test-manifest.json",
+                mode="ro",
+            )
             .with_exposed_ports(5000)
             .waiting_for(readiness)
         )

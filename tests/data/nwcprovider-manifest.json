@@ -1,0 +1,12 @@
+{
+  "extensions": [
+    {
+      "id": "nwcprovider",
+      "name": "Nostr Wallet Connect Provider",
+      "version": "1.2.1",
+      "archive": "https://codeload.github.com/lnbits/nwcprovider/zip/cb2d8423338d740bd7f8258ed3b8cd2cec24a6ea",
+      "hash": "fd434dc2a6e8eee85b99ac1516b755b274b9348ed4c258e07848a27db03aeff2",
+      "repo": "https://github.com/lnbits/nwcprovider"
+    }
+  ]
+}
